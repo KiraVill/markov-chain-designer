@@ -273,28 +273,21 @@ drawState mode state svgs =
 
 drawEdge : WindowMode -> Edge -> List (Svg.Svg Msg) -> List (Svg.Svg Msg)
 drawEdge mode e svgs = 
-    let 
-        (x1,y1) = getNodeOutCoords e.from
-        (x2,y2) = getNodeInCoords e.to
-    in
     case mode of 
         Normal (Just selected) ->
-            (Svg.line [ Svg.Attributes.x1 (String.fromInt x1)
-                      , Svg.Attributes.y1 (String.fromInt y1)
-                      , Svg.Attributes.x2 (String.fromInt x2)
-                      , Svg.Attributes.y2 (String.fromInt y2)
+            (Svg.path [ Svg.Attributes.d (getEdgePath e)
                       , Svg.Attributes.stroke "red"
                       , Svg.Attributes.strokeWidth (if selected == e.from || selected == e.to then "6" else "2")
+                      , Svg.Attributes.fill "none"
                       ] []) :: svgs
     
         _ ->
-            (Svg.line [ Svg.Attributes.x1 (String.fromInt x1)
-                      , Svg.Attributes.y1 (String.fromInt y1)
-                      , Svg.Attributes.x2 (String.fromInt x2)
-                      , Svg.Attributes.y2 (String.fromInt y2)
+            (Svg.path [ Svg.Attributes.d (getEdgePath e)
                       , Svg.Attributes.stroke "red"
+                      , Svg.Attributes.fill "none"
                       ] []) :: svgs
-                   
+
+
 
 
 trimLabel : Int -> String -> String
@@ -333,7 +326,43 @@ getNodeInCoords node =
     (x - styleNodeRadius, y)
 
 
-
+getEdgePath : Edge -> String
+getEdgePath e = 
+    let 
+        (xstart,ystart) = getNodeOutCoords e.from
+        (xend,yend) = getNodeInCoords e.to
+    in
+    if e.to // styleNodesPerRow == e.from // styleNodesPerRow then
+        if e.to - e.from == 1 then
+            -- direct neighbours
+            "M " ++ String.fromInt xstart ++ "," ++ String.fromInt ystart ++
+            " L " ++ String.fromInt xend ++ "," ++ String.fromInt yend
+            
+        else -- not neighbours but on same row
+            -- Possible improvement: don't all flatten out at same altitude
+            if e.to - e.from > 0 then  -- arc forwards
+                "M " ++ String.fromInt xstart ++ "," ++ String.fromInt ystart ++
+                " Q" ++ String.fromInt (xstart + (styleNodeRadius // 2)) ++ "," ++ String.fromInt (ystart - styleNodeRadius - 10) ++ 
+                " " ++ String.fromInt ((xstart + xend) // 2) ++ "," ++ String.fromInt (ystart - styleNodeRadius - 20) ++
+                " T " ++ String.fromInt xend ++ "," ++ String.fromInt yend
+            else -- arc backwards
+                "M " ++ String.fromInt xstart ++ "," ++ String.fromInt ystart ++
+                " Q" ++ String.fromInt (xstart + styleNodeRadius) ++ "," ++ String.fromInt (ystart + styleNodeRadius + 30) ++ 
+                " " ++ String.fromInt ((xstart + xend) // 2) ++ "," ++ String.fromInt (ystart + styleNodeRadius + 40) ++
+                " T " ++ String.fromInt xend ++ "," ++ String.fromInt yend
+        
+    else if e.from < e.to then -- arrow is going down one or more rows
+        -- Possible improvement - fix intersecting with other nodes when crosses a row
+        "M" ++ String.fromInt xstart ++ "," ++ String.fromInt ystart ++
+        " Q" ++ String.fromInt (xstart + (styleNodeRadius // 2)) ++ "," ++ String.fromInt (ystart + styleNodeRadius) ++ 
+        " " ++ String.fromInt ((xstart + xend) // 2) ++ "," ++ String.fromInt ((ystart + yend) // 2) ++
+        " T" ++ String.fromInt xend ++ "," ++ String.fromInt yend  
+   
+    else -- arrow is going upwards
+        "M" ++ String.fromInt xstart ++ "," ++ String.fromInt ystart ++
+        " Q" ++ String.fromInt (xstart + styleNodeRadius) ++ "," ++ String.fromInt (ystart - styleNodeRadius) ++ 
+        " " ++ String.fromInt ((xstart + xend) // 2) ++ "," ++ String.fromInt ((ystart + yend) // 2) ++
+        " T" ++ String.fromInt xend ++ "," ++ String.fromInt yend  
 
 
 --makeEdge : Array State -> Int -> Int -> Maybe Edge
